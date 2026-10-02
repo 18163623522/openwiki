@@ -52,6 +52,7 @@ type CapturedMiddleware = {
 };
 
 type CapturedAgentOptions = {
+  name?: string;
   tools: CompletionTool[];
   systemPrompt: unknown;
   subagents: unknown[];
@@ -540,7 +541,9 @@ vi.mock("../../src/generation/repository-run.js", () => ({
 import {
   isRateLimitError,
   parseWorkerToolEvent,
+  PLANNER_AGENT_NAME,
   runNativeRepositoryGeneration,
+  workerAgentName,
 } from "../../src/agent/repository-runner.ts";
 import type { OpenWikiRunEvent } from "../../src/agent/types.ts";
 
@@ -1345,5 +1348,21 @@ describe("LangSmith thread grouping", () => {
     for (const config of harness.streamConfigs) {
       expect(config.configurable).toEqual({ thread_id: "ingest-3280b3e" });
     }
+  });
+});
+
+describe("LangSmith trace names", () => {
+  test("names the planner and each page worker after its page", async () => {
+    await runHarness({ pageConcurrency: 2 });
+
+    const [planner, ...workers] = harness.agentOptions.map(({ name }) => name);
+    expect(planner).toBe(PLANNER_AGENT_NAME);
+    // Order is the pool's (concurrent workers write the quickstart last).
+    expect(workers.sort()).toEqual(
+      harness.planPaths.map((path) => workerAgentName(path)).sort(),
+    );
+    expect(workerAgentName("/openwiki/coverage/forms/ho-3.md")).toBe(
+      "worker agent: coverage/forms/ho-3",
+    );
   });
 });

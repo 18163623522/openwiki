@@ -493,6 +493,7 @@ async function runPlanningAgent(
 
   const backend = createAgentBackend(wikiBackend);
   const agent = createDeepAgent({
+    name: PLANNER_AGENT_NAME,
     model,
     tools: [submitPlanTool],
     backend,
@@ -520,6 +521,19 @@ async function runPlanningAgent(
   if (!submitted || !run.state.plan) {
     throw new Error("Repository planning worker exited without submit_plan.");
   }
+}
+
+/** The planner's trace name in LangSmith (otherwise the graph default, "LangGraph"). */
+export const PLANNER_AGENT_NAME = "planning agent";
+
+/**
+ * A page worker's trace name in LangSmith: the page it owns, so a run's thread
+ * reads as one planner and one worker per page.
+ *
+ * @param page - Canonical page path, such as `/openwiki/coverage/forms/ho-3.md`.
+ */
+export function workerAgentName(page: string): string {
+  return `worker agent: ${page.replace(/^\/openwiki\//u, "").replace(/\.md$/u, "")}`;
 }
 
 const QUICKSTART_PAGE_PATH = "/openwiki/quickstart.md";
@@ -900,6 +914,7 @@ async function runPageAgent(
 
   const backend = createAgentBackend(wikiBackend);
   const agent = createDeepAgent({
+    name: workerAgentName(job.path),
     model,
     tools: [inspectClaimsTool, submitPageTool],
     backend,
